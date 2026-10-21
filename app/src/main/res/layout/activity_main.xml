@@ -43,6 +43,16 @@
                 android:layout_gravity="center"
                 android:background="@drawable/shutter" />
 
+            <ImageView
+                android:id="@+id/thumb"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:layout_gravity="center_vertical|start"
+                android:layout_marginStart="32dp"
+                android:background="@drawable/chip_bg"
+                android:contentDescription="Share last photo"
+                android:scaleType="centerCrop" />
+
             <TextView
                 android:id="@+id/flipButton"
                 android:layout_width="56dp"

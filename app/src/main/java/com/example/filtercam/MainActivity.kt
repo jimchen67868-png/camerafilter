@@ -15,6 +15,7 @@ import android.os.Bundle
 import android.provider.MediaStore
 import android.view.LayoutInflater
 import android.view.View
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -35,6 +36,8 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var previewView: PreviewView
     private lateinit var filterRow: LinearLayout
+    private lateinit var thumb: ImageView
+    private var lastUri: Uri? = null
     private lateinit var cameraExecutor: ExecutorService
 
     private var imageCapture: ImageCapture? = null
@@ -59,6 +62,8 @@ class MainActivity : AppCompatActivity() {
 
         previewView = findViewById(R.id.previewView)
         filterRow = findViewById(R.id.filterRow)
+        thumb = findViewById(R.id.thumb)
+        thumb.setOnClickListener { sharePhoto() }
         cameraExecutor = Executors.newSingleThreadExecutor()
 
         // COMPATIBLE = TextureView, which lets us tint the live preview with a color filter.
@@ -134,9 +139,14 @@ class MainActivity : AppCompatActivity() {
                     if (intent?.action == MediaStore.ACTION_IMAGE_CAPTURE) {
                         returnToCaller(filtered)
                     } else {
-                        save(filtered)
+                        val uri = save(filtered)
+                        val small = Bitmap.createScaledBitmap(
+                            filtered, 160, (160f * filtered.height / filtered.width).toInt().coerceAtLeast(1), true
+                        )
                         runOnUiThread {
-                            Toast.makeText(this@MainActivity, "Saved to Pictures/FilterCam", Toast.LENGTH_SHORT).show()
+                            lastUri = uri
+                            thumb.setImageBitmap(small)
+                            Toast.makeText(this@MainActivity, "Saved. Tap the thumbnail to share", Toast.LENGTH_SHORT).show()
                         }
                     }
                 } catch (e: Exception) {
@@ -183,7 +193,7 @@ class MainActivity : AppCompatActivity() {
         return out
     }
 
-    private fun save(bitmap: Bitmap) {
+    private fun save(bitmap: Bitmap): Uri {
         val values = ContentValues().apply {
             put(MediaStore.Images.Media.DISPLAY_NAME, "FilterCam_${System.currentTimeMillis()}.jpg")
             put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
@@ -193,6 +203,20 @@ class MainActivity : AppCompatActivity() {
         val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
             ?: throw IllegalStateException("Could not create MediaStore entry")
         contentResolver.openOutputStream(uri)?.use { bitmap.compress(Bitmap.CompressFormat.JPEG, 95, it) }
+        return uri
+    }
+
+    private fun sharePhoto() {
+        val uri = lastUri ?: run {
+            Toast.makeText(this, "Take a photo first", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val send = Intent(Intent.ACTION_SEND).apply {
+            type = "image/jpeg"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        startActivity(Intent.createChooser(send, "Share photo"))
     }
 
     override fun onDestroy() {
